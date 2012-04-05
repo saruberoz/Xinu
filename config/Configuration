@@ -1,0 +1,58 @@
+/************************************************************************/
+/*									*/
+/* Configuration - Xinu device configuration specification file		*/
+/*									*/
+/* This file becomes input to the config program, which generates	*/
+/* 		conf.h  and  conf.c					*/
+/*									*/
+/* Entries for a device specify the functions that handle each of the	*/
+/* high-level I/O operations as follows:				*/
+/*									*/
+/*	-i    init	-o    open	-c    close			*/
+/*	-r    read	-w    write	-s    seek			*/
+/*	-g    getc	-p    putc	-n    control			*/
+/*	-intr int_hndlr	-csr  csr	-irq  irq			*/
+/*									*/
+/************************************************************************/
+
+/* Type Declarations for both real- and pseudo- device types */
+
+/* type of a null device */
+null:
+	on nothing
+
+		-i ionull	-o ionull	-c ionull
+		-r ionull	-g ionull	-p ionull
+		-w ionull	-s ioerr
+
+/* type of a tty device */
+tty:
+	on uart
+		-i ttyInit	-o ionull	-c ionull
+		-r ttyRead	-g ttyGetc	-p ttyPutc
+		-w ttyWrite	-s ioerr	-n ttyControl
+		-intr ttyInterrupt		-irq 11
+
+%%
+/* Actual device declarations that each give the name of a device that	*/
+/*   will be present in the system					*/
+
+   /* Define the console device to be a tty and specify CSR*/
+
+   CONSOLE is tty  on uart  csr 0xB8020000
+
+   /* Define a null device */
+
+   NOTADEV is null on nothing
+
+%%
+
+/* Configuration and Size Constants */
+
+#define	NPROC	     100	/* number of user processes		*/
+#define	NSEM	     100	/* number of semaphores			*/
+#define	IRQ_TIMER    IRQ_HW5	/* timer IRQ is wired to hardware 5	*/
+#define	IRQ_ATH_MISC IRQ_HW4	/* Misc. IRQ is wired to hardware 4	*/
+#define MAXADDR      0x02000000	/* 32 MB of RAM				*/
+#define CLKFREQ      200000000	/* 200 MHz clock			*/
+#define FLASH_BASE   0xBD000000	/* Flash ROM device			*/
