@@ -1,0 +1,70 @@
+Overview
+========
+This Xinu implements pipe primitives for interprocess communication in Xinu. 
+the mechanism will allow processes to open a maximum of NPIPE (set to 10 by default) pipes. 
+A process can create a pipe and pass the ID of the pipe to another process; the two processes can then use the pipe to send a receive a stream of data 
+-- one process sends data and another receives it. To implement you pipe facility you must add a set of system calls to Xinu.
+
+To operate with pipe primitives, one should follow the sequence:
+Create a pipe
+Connect the processes that need to communicate with the pipe
+Perform communication through the pipe
+Release (i.e., terminate) the pipe
+A pipe between two processes should be constructed as a classical bounded-buffer. One process (called a producer) fills the buffer with data, and the other process (called a consumer) empties the buffer. Each pipe has a fixed-size buffer of PIPE_SIZ bytes (256 bytes by default).
+
+Design
+=======
+Pipe facility must insure that the producer cannot add data to a pipe if the buffer is full, and the consumer cannot remove data from a pipe if the pipe is emtpy. We strongly recommend that you use semaphores to control access to the pipe (two semaphores are necessary and sufficient).
+A pipe in Xinu is uniquely identified by the pipe ID. Each pipe has a owner, who creates the pipe, a writer, who can write to the pipe and a reader who can read from the pipe.
+
+A pipe can be in one of the following states:
+PIPE_FREE: 
+--A pipe is in the "free" state when pipe has not been allocated by a process. data can neither be read nor written to a free pipe. All the pipes are in the "free" state when the system starts.
+PIPE_USED: 
+--A pipe has been created by using the pipcreate() function (see below) but no process has yet connected to either end of the pipe.
+PIPE_CONNECTED: 
+--Two processes have connected to the pipe by calling pipconnect() (see below).
+Remember that a Xinu pipe is a means of communication between only two processes - producer process and a consumer process.
+
+System Calls
+============
+You are required to implement the following set of system calls (Refer to prototype.h for adding new system calls to Xinu).
+1. syscall pipcreate()
+A process (neither the producer process nor the consumer process) creates a pipe using this system call, 
+which returns the pipe ID pipid32 if the process is able to find an available pipe from system and setup the appropriate state variables. 
+On success, it puts the pipe in "used" state. 
+2. syscall pipdelete(pipid32 pip)
+The pipdelete() system call is used release a pipe; the call a pipe ID as an argument.
+It should set the state of the pipe to "free" and return OK. After the call, the pipe should be ready for reallocation 
+(i.e. the call should clear the buffer and reset associated variables). Note that only the owner of the pipe can delete.
+ If a non-owner tries to delete, then SYSERR needs to be returned.
+3. syscall pipconnect(pipid32 pip, pid32 end1, pid32 end2)
+The pipconnect() system call is used to connect two processes to an existing pipe. 
+It takes as its arguments a pipe ID, a process ID for one end, and a process ID for the other end. 
+The system call returns OK if the pipe is successful connected with two processes. 
+In any case, if the arguments are invalid, the pipe was already connected to other processes, or the state of the pipe does not permit connection, the system call returns SYSERR. 
+Note that only the owner of the pipe can call connect. If a non-owner tries to delete, then SYSERR needs to be returned.
+4. syscall pipdisconnect(pipid32 pip)
+his system call is used to disconnect two processes from a specified pipe. 
+The call returns OK, if the pipe is in reasonable state, and SYSERR otherwise. Note that only the owner of the pipe can call disconnect. 
+If a non-owner tries to delete, then SYSERR needs to be returned.
+5. syscall pipwrite(pipid32, char *buf, uint32 len)
+This system call is used by a process to write data to the bounded-buffer of an connected pipe. 
+It takes as arguments the pipe ID, a pointer to the buffer from which data is to be written and the length of data to be written. 
+The call returns SYSERR if the pipe is not in connected state. Otherwise, the call returns the number of bytes written to the pipe. 
+If the bounded-buffer is full and there is no room for additional data to be written, the calling process needs is blocked. (Hint: use Xinu's semaphore primitives).
+If there is some space for data to be written, the system call copies the data in the available space from buf to the pipe (bounded-buffer) and returns the number of bytes written. 
+Remember, that the actual number of bytes written to the pipe may be less than len. 
+Note that only writer process can write to the pipe.
+6. syscall pipread(pipid32, char *buf, uint32 len)
+This system call is used by a process to read data from a connected pipe specified by the pipe ID pipid32. 
+The system call reads up to len bytes from the connected pipe and saves it in buf. If there are no len bytes in the pipe, it reads as many available and returns. 
+The system call returns the actual number of bytes read or SYSERR, if the read is unsuccessful.
+ The calling process blocks if there is no data to be read from a connected pipe. Note that only reader process can read from the pipe.
+
+Implementation
+===============
+One can declare the buffer and space for other variables by defining global variables. The system can preallocate an array of pipe structures. 
+use the semaphore mechanism in Xinu to enforce synchronization between a producer and consumer processes. 
+implement any reasonable condition check within your code to make sure your system won't block if some one happens to use your API in an impertinent way. Do not expect too many details from here! 
+Assume that no process (owner, reader, writer) dies or is killed. But note that any process can complete execution and exit.
